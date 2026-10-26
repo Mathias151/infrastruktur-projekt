@@ -46,11 +46,9 @@ Backup klar!
 Verifieringen kontrollerar att kopiorna **finns**. Den kontrollerar inte att innehållet är identiskt.
 
 ## 4. Reflektion
-Jag har lärt mig hur Terraform kan skapa en konfigurationsfil som ett PowerShell-skript sedan använder. Jag har också tränat på funktioner med parametrar, loopar, villkor och `try/catch` för felhantering.
+Jag har lärt mig hur Terraform kan skapa en konfigurationsfil som ett PowerShellskript som man sedan använder. Jag har också tränat på funktioner med parametrar, loopar, villkor och `try/catch` för felhantering.
 
 Det viktiga var att testa en del i taget så att jag förstod vad varje kommando gjorde. Lösningen är enkel, men den fungerar för testfiler och går att köra igen.
 
 ## 5. GitHub-länk
-**Lägg in den riktiga länken till ditt GitHub-repository här före inlämning.**
-
-> OBS: Kontrollera att repositoryt innehåller minst fem riktiga commits innan du lämnar in.
+https://github.com/Mathias151/infrastruktur-projekt.git
