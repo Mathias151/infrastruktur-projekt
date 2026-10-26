@@ -1,0 +1,13 @@
+# Terraform - lokala filer
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Lokala variabler
+*.tfvars
+*.tfvars.json
+
+# Genererade testfiler
+projektinfo.txt
