@@ -4,14 +4,12 @@
 *.tfstate.*
 crash.log
 crash.*.log
-
-# Lokala variabler
 *.tfvars
 *.tfvars.json
 
-# Genererade testfiler
+# Filer som skapas av Terraform
 projektinfo.txt
 backup_config.json
 
-# Genererade säkerhetskopior
+# Filer som skapas av PowerShell
 backups/

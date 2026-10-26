@@ -2,113 +2,76 @@ param(
     [string]$ConfigPath = (Join-Path $PSScriptRoot "backup_config.json")
 )
 
-# Funktion 1 - Skapar backupmappen
+# Funktion 1: skapa backupmappen
 function New-BackupFolder {
-    param(
-        [string]$FolderName
-    )
+    param([string]$FolderName)
 
     if ($FolderName -notmatch '^[a-zA-Z0-9_-]+$') {
-        throw "Ogiltigt mappnamn: $FolderName"
+        throw "Ogiltigt mappnamn"
     }
 
-    $folderPath = Join-Path $PSScriptRoot $FolderName
+    $path = Join-Path $PSScriptRoot $FolderName
 
-    if (-not (Test-Path -LiteralPath $folderPath -PathType Container)) {
-        New-Item -ItemType Directory -Path $folderPath -ErrorAction Stop | Out-Null
-        Write-Host "Backupmappen har skapats: $folderPath"
-    }
-    else {
-        Write-Host "Backupmappen finns redan: $folderPath"
+    if (-not (Test-Path -LiteralPath $path -PathType Container)) {
+        New-Item -ItemType Directory -Path $path -ErrorAction Stop | Out-Null
     }
 
-    return $folderPath
+    return $path
 }
 
-# Funktion 2 - Kopierar filer till backupmappen
+# Funktion 2: kopiera testfilerna
 function Copy-BackupFiles {
-    param(
-        [string]$SourcePath,
-        [string]$DestinationPath
-    )
+    param([string]$Source, [string]$Destination)
 
-    if (-not (Test-Path -LiteralPath $SourcePath -PathType Container)) {
-        throw "Källmappen finns inte: $SourcePath"
-    }
-
-    $files = @(Get-ChildItem -LiteralPath $SourcePath -File -ErrorAction Stop)
+    $files = @(Get-ChildItem -LiteralPath $Source -File -ErrorAction Stop)
 
     if ($files.Count -eq 0) {
-        throw "Det finns inga filer att säkerhetskopiera."
+        throw "Inga filer att kopiera"
     }
 
     foreach ($file in $files) {
-        $destination = Join-Path $DestinationPath $file.Name
-
-        Copy-Item -LiteralPath $file.FullName -Destination $destination -ErrorAction Stop
-
-        Write-Host "Kopierad fil: $($file.Name)"
+        $target = Join-Path $Destination $file.Name
+        Copy-Item -LiteralPath $file.FullName -Destination $target -Force -ErrorAction Stop
     }
 
-    Write-Host "Backup klar! Antal filer: $($files.Count)"
+    Write-Host "$($files.Count) filer kopierade"
 }
 
-# Funktion 3 - Verifierar säkerhetskopierade filer
+# Funktion 3: kontrollera att kopiorna finns
 function Test-BackupFiles {
-    param(
-        [string]$SourcePath,
-        [string]$DestinationPath
-    )
+    param([string]$Source, [string]$Destination)
 
-    $files = @(Get-ChildItem -LiteralPath $SourcePath -File -ErrorAction Stop)
-
-    if ($files.Count -eq 0) {
-        throw "Inga filer hittades för verifiering."
-    }
+    $files = @(Get-ChildItem -LiteralPath $Source -File -ErrorAction Stop)
 
     foreach ($file in $files) {
-        $backupFile = Join-Path $DestinationPath $file.Name
+        $target = Join-Path $Destination $file.Name
 
-        if (-not (Test-Path -LiteralPath $backupFile -PathType Leaf)) {
-            throw "Backupfilen saknas: $($file.Name)"
+        if (-not (Test-Path -LiteralPath $target -PathType Leaf)) {
+            throw "Backupfil saknas: $($file.Name)"
         }
-
-        $originalHash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256 -ErrorAction Stop).Hash
-        $backupHash = (Get-FileHash -LiteralPath $backupFile -Algorithm SHA256 -ErrorAction Stop).Hash
-
-        if ($originalHash -ne $backupHash) {
-            throw "Verifiering misslyckades: $($file.Name)"
-        }
-
-        Write-Host "Verifierad fil: $($file.Name)"
     }
 
-    Write-Host "Alla $($files.Count) filer har verifierats!"
+    Write-Host "Alla filer finns i backupmappen"
 }
 
+# Huvudprogram: Terraform -> PowerShell
 try {
-    # Läs konfigurationen från Terraform
     if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)) {
-        throw "Konfigurationsfilen saknas: $ConfigPath"
+        throw "Konfigurationsfilen saknas"
     }
 
     $config = Get-Content -LiteralPath $ConfigPath -Raw -ErrorAction Stop |
         ConvertFrom-Json -ErrorAction Stop
 
-    Write-Host "Projekt: $($config.projektnamn)"
-    Write-Host "Backupmapp: $($config.backup_mapp)"
+    $source = Join-Path $PSScriptRoot "testfiler"
+    $destination = New-BackupFolder -FolderName $config.backup_mapp
 
-    # Skapa backupmappen
-    $backupPath = New-BackupFolder -FolderName $config.backup_mapp
+    Copy-BackupFiles -Source $source -Destination $destination
+    Test-BackupFiles -Source $source -Destination $destination
 
-    # Kopiera testfilerna
-    $sourcePath = Join-Path $PSScriptRoot "testfiler"
-
-    Copy-BackupFiles -SourcePath $sourcePath -DestinationPath $backupPath
-    Test-BackupFiles -SourcePath $sourcePath -DestinationPath $backupPath
+    Write-Host "Backup klar!"
 }
-
 catch {
-    Write-Error "Ett fel uppstod: $($_.Exception.Message)"
+    Write-Error "Fel: $($_.Exception.Message)"
     exit 1
 }
