@@ -11,3 +11,4 @@ crash.*.log
 
 # Genererade testfiler
 projektinfo.txt
+backup_config.json
