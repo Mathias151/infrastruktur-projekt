@@ -1,19 +1,30 @@
-# Automatiserad backup med Terraform och PowerShell
+# Automatiserad backup med Terraform, PowerShell och Python
 
 ## 1. Mål
-Målet är att automatisera en enkel backup av två testfiler. Terraform skapar konfigurationen och PowerShell använder den för att kopiera filer till en backupmapp och kontrollera resultatet.
+
+Jag har gjort ett enkelt projekt som automatiskt säkerhetskopierar två testfiler.
+Terraform skapar konfigurationen, PowerShell kopierar filerna och Python kontrollerar att kopiorna har samma innehåll som originalen.
+Projektet är gjort för att visa grundläggande automatisering i en IT-miljö.
 
 ## 2. Metod
-Projektet körs i Ubuntu via WSL2 och använder **Terraform**, **PowerShell 7** och **Git**.
 
-- `main.tf`: två Terraform-resurser som skapar `projektinfo.txt` och `backup_config.json`.
-- `variables.tf`: projektets namn och namnet på backupmappen.
-- `outputs.tf`: visar namnet på backupmappen.
-- `backup.ps1`: tre funktioner som skapar mappen, kopierar testfiler och kontrollerar att kopiorna finns.
-- `testfiler/`: två enkla textfiler för test.
+Jag använder **Ubuntu via WSL2**, **Terraform**, **PowerShell 7**, **Python 3** och **Git/GitHub**.
 
-### Kör projektet steg för steg
-Öppna en Ubuntu/WSL-terminal i projektmappen och kör:
+### Vad filerna gör
+
+- `main.tf` – har två resurser som skapar `projektinfo.txt` och `backup_config.json`.
+- `variables.tf` – innehåller projektets namn och namnet på backupmappen.
+- `outputs.tf` – visar backupmappens namn efter att Terraform körts.
+- `backup.ps1` – har tre funktioner: skapa mapp, kopiera filer och kontrollera att kopior finns. Skriptet startar även Python-kontrollen.
+- `kontrollera_backup.py` – använder Python för att jämföra innehållet i originalfiler och backupfiler.
+- `testfiler/` – innehåller de två testfilerna som kopieras.
+- `.gitignore` – hindrar genererade filer från att hamna i GitHub.
+
+### Installation och körning
+
+Det behövs Terraform, PowerShell 7 (`pwsh`) och Python 3 (`python3`) i Ubuntu/WSL. Python använder bara standardbiblioteket, så inga extra Python-paket behövs.
+
+Öppna terminalen i projektmappen och kör:
 
 ```bash
 terraform init
@@ -22,33 +33,49 @@ terraform plan
 terraform apply
 ```
 
-Svara `yes` om Terraform frågar om ändringarna ska genomföras.
+Skriv `yes` om Terraform frågar om du vill genomföra ändringarna. Terraform skapar nu `projektinfo.txt` och `backup_config.json`.
 
-Kör sedan PowerShell-skriptet:
+Kör sedan:
 
 ```bash
 pwsh -NoProfile -File ./backup.ps1
 ```
 
-Du kan kontrollera resultatet genom att öppna mappen `backups/`.
+PowerShell kopierar filerna och startar Python automatiskt. Du kan också köra kontrollen separat:
+
+```bash
+python3 kontrollera_backup.py
+```
+
+Du kan visa de kopierade filerna med `ls backups`.
+
+**Ordningen är:** Terraform → PowerShell → Python.
 
 ## 3. Resultat
-När Terraform har körts skapas konfigurationsfilerna. När PowerShell-skriptet körs kopieras `test1.txt` och `test2.txt` från `testfiler/` till `backups/`.
 
-Exempel på utskrift vid en lyckad körning:
+När allt fungerar skapas mappen `backups` och de två filerna kopieras dit. PowerShell kontrollerar att kopiorna finns och Python jämför deras innehåll.
+
+Exempel på lyckad utskrift (kontrolleras vid sluttest):
 
 ```text
 2 filer kopierade
 Alla filer finns i backupmappen
+Python: 2 filer kontrollerade. Innehållet är identiskt.
 Backup klar!
 ```
 
-Verifieringen kontrollerar att kopiorna **finns**. Den kontrollerar inte att innehållet är identiskt.
+Kör jag skriptet igen skrivs kopior med samma namn över. Om ett steg misslyckas får jag ett felmeddelande.
 
 ## 4. Reflektion
-Jag har lärt mig hur Terraform kan skapa en konfigurationsfil som ett PowerShellskript som man sedan använder. Jag har också tränat på funktioner med parametrar, loopar, villkor och `try/catch` för felhantering.
 
-Det viktiga var att testa en del i taget så att jag förstod vad varje kommando gjorde. Lösningen är enkel, men den fungerar för testfiler och går att köra igen.
+Jag har lärt mig hur Terraform skapar konfigurationsfiler och hur PowerShell kan använda dem. Jag har övat på funktioner, parametrar, arrayer, loopar, villkor och felhantering i PowerShell. Python används för en enkel men tydlig kontroll av att backupens innehåll stämmer.
+
+En begränsning är att skriptet måste startas manuellt och att gamla kopior skrivs över. För den här uppgiften har jag valt att hålla lösningen enkel och begriplig.
+
+### AI och externa källor
+
+Jag har använt ChatGPT som stöd för idéer, kodförslag, kommentarer och felsökning. Jag använder tester i Ubuntu/WSL för att kontrollera kodförslagen.
 
 ## 5. GitHub-länk
-https://github.com/Mathias151/infrastruktur-projekt.git
+
+https://github.com/Mathias151/infrastruktur-projekt
