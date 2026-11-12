@@ -1,4 +1,4 @@
-# Terraform: lokala inställningar och tillstånd
+# Terraform-filer som skapas automatiskt
 .terraform/
 *.tfstate
 *.tfstate.*
@@ -7,14 +7,12 @@ crash.*.log
 *.tfvars
 *.tfvars.json
 
-# Filer som Terraform skapar vid körning
+# Filer och mappar som skapas när projektet körs
 projektinfo.txt
 backup_config.json
-
-# Kopior som PowerShell skapar vid körning
 backups/
 
-# Tillfälliga Python-filer och metadata från Windows
+# Tillfälliga filer
 __pycache__/
 *.pyc
 *:Zone.Identifier

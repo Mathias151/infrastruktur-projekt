@@ -1,94 +1,72 @@
-# PowerShell utför backupen. Terraform ska köras först och skapa JSON-filen.
-# $PSScriptRoot betyder mappen där backup.ps1 ligger.
-param(
-    [string]$ConfigPath = (Join-Path $PSScriptRoot "backup_config.json")
-)
+# Detta skript kopierar testfiler till en backupmapp.
+# Terraform måste ha skapat backup_config.json innan vi kör skriptet.
 
-# Funktion 1: skapa backupmappen om den inte redan finns.
-function New-BackupFolder {
-    param([string]$FolderName)
+# Funktion 1: Skapa backupmappen om den inte finns.
+function Skapa-Backupmapp {
+    param([string]$Namn)
 
-    # Tillåt bara ett enkelt mappnamn, inte en godtycklig sökväg.
-    if ($FolderName -notmatch '^[a-zA-Z0-9_-]+$') {
-        throw "Ogiltigt mappnamn"
+    # Bara enkla mappnamn får användas (bokstäver, siffror, _ och -).
+    if ($Namn -notmatch '^[a-zA-Z0-9_-]+$') {
+        throw "Felaktigt namn på backupmappen"
     }
 
-    $path = Join-Path $PSScriptRoot $FolderName
-
-    # -not betyder "inte". Om mappen saknas skapas den.
-    if (-not (Test-Path -LiteralPath $path -PathType Container)) {
-        New-Item -ItemType Directory -Path $path -ErrorAction Stop | Out-Null
+    $Mapp = Join-Path $PSScriptRoot $Namn
+    if (-not (Test-Path -LiteralPath $Mapp -PathType Container)) {
+        New-Item -ItemType Directory -Path $Mapp -ErrorAction Stop | Out-Null
     }
-    return $path
+    return $Mapp
 }
 
-# Funktion 2: kopiera alla filer från testfiler till backupmappen.
-function Copy-BackupFiles {
-    param([string]$Source, [string]$Destination)
+# Funktion 2: Kopiera filerna en i taget.
+function Kopiera-Filer {
+    param([string]$Fran, [string]$Till)
 
-    # @() ger en lista (array) även om mappen bara har en fil.
-    $files = @(Get-ChildItem -LiteralPath $Source -File -ErrorAction Stop)
-    if ($files.Count -eq 0) {
-        throw "Inga filer att kopiera"
+    $Filer = @(Get-ChildItem -LiteralPath $Fran -File -ErrorAction Stop)
+    if ($Filer.Count -eq 0) {
+        throw "Inga testfiler hittades"
     }
 
-    # foreach gör samma sak för varje fil. -Force skriver över gamla kopior.
-    foreach ($file in $files) {
-        $target = Join-Path $Destination $file.Name
-        Copy-Item -LiteralPath $file.FullName -Destination $target -Force -ErrorAction Stop
+    # foreach går igenom varje fil i listan.
+    foreach ($Fil in $Filer) {
+        Copy-Item -LiteralPath $Fil.FullName -Destination $Till -Force -ErrorAction Stop
     }
-
-    Write-Host "$($files.Count) filer kopierade"
+    Write-Host "$($Filer.Count) filer kopierade"
 }
 
-# Funktion 3: kontrollera att varje kopierad fil finns.
-function Test-BackupFiles {
-    param([string]$Source, [string]$Destination)
+# Funktion 3: Kontrollera att kopiorna finns.
+function Kontrollera-Kopior {
+    param([string]$Fran, [string]$Till)
 
-    $files = @(Get-ChildItem -LiteralPath $Source -File -ErrorAction Stop)
-    foreach ($file in $files) {
-        $target = Join-Path $Destination $file.Name
-
-        # -PathType Leaf betyder att sökvägen ska vara en fil.
-        if (-not (Test-Path -LiteralPath $target -PathType Leaf)) {
-            throw "Backupfil saknas: $($file.Name)"
+    foreach ($Fil in (Get-ChildItem -LiteralPath $Fran -File -ErrorAction Stop)) {
+        $Kopia = Join-Path $Till $Fil.Name
+        if (-not (Test-Path -LiteralPath $Kopia -PathType Leaf)) {
+            throw "Kopian saknas: $($Fil.Name)"
         }
     }
-
     Write-Host "Alla filer finns i backupmappen"
 }
 
-# Huvudprogram: läs Terraform-filen, gör backup och kontrollera resultatet.
+# Huvudprogrammet: Kör funktionerna i rätt ordning.
 try {
-    # try försöker köra stegen; catch nedan tar hand om fel.
-    if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)) {
-        throw "Konfigurationsfilen saknas. Kör terraform apply först."
+    $ConfigFil = Join-Path $PSScriptRoot "backup_config.json"
+    if (-not (Test-Path -LiteralPath $ConfigFil -PathType Leaf)) {
+        throw "Konfiguration saknas. Kör terraform apply först."
     }
+    $Config = Get-Content -LiteralPath $ConfigFil -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
 
-    # ConvertFrom-Json gör om JSON-text till värden PowerShell kan läsa.
-    $config = Get-Content -LiteralPath $ConfigPath -Raw -ErrorAction Stop |
-        ConvertFrom-Json -ErrorAction Stop
+    $Fran = Join-Path $PSScriptRoot "testfiler"
+    $Till = Skapa-Backupmapp -Namn $Config.backup_mapp
+    Kopiera-Filer -Fran $Fran -Till $Till
+    Kontrollera-Kopior -Fran $Fran -Till $Till
 
-    $source = Join-Path $PSScriptRoot "testfiler"
-    $destination = New-BackupFolder -FolderName $config.backup_mapp
-
-    Copy-BackupFiles -Source $source -Destination $destination
-    Test-BackupFiles -Source $source -Destination $destination
-
-    # Python gör en extra kontroll: är innehållet i filerna identiskt?
-    $pythonScript = Join-Path $PSScriptRoot "kontrollera_backup.py"
-    if (-not (Test-Path -LiteralPath $pythonScript -PathType Leaf)) {
-        throw "Python-filen kontrollera_backup.py saknas"
-    }
-    & python3 $pythonScript
+    # Python kontrollerar också att filernas innehåll är likadant.
+    & python3 (Join-Path $PSScriptRoot "kontrollera_backup.py")
     if ($LASTEXITCODE -ne 0) {
         throw "Python-kontrollen misslyckades"
     }
-
     Write-Host "Backup klar!"
 }
 catch {
-    # Om ett steg misslyckas visas felet och skriptet avslutas.
     Write-Error "Fel: $($_.Exception.Message)"
     exit 1
 }
